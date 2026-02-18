@@ -27,7 +27,7 @@ class CellularAutomaton:
         #setup of the board and buttons 
         self.fig, self.ax = plt.subplots()
         self.image = self.ax.imshow(self.grid, cmap="binary")
-        self.ax.set_title("Cellular Automaton  (press 'p' to pause/resume)")
+        self.ax.set_title("Cellular Automaton  (Pause: press 'p' | Quit: press 'q')")
         self.ax.set_xticks([])
         self.ax.set_yticks([])
         #allows key presses
@@ -136,7 +136,7 @@ if __name__ == "__main__":
     #This lets the user change the size of the board, if they don't put in a number, defaults to 50
     try:
         r_in = input("How many rows do ya want? ").strip()
-        c_in = input("How about columns").strip()
+        c_in = input("How about columns? ").strip()
         rows = int(r_in) if r_in else 50
         cols = int(c_in) if c_in else 50
     except ValueError:
@@ -144,5 +144,5 @@ if __name__ == "__main__":
 
     #Creates the board and makes the magic happen
     automaton = CellularAutomaton(rows, cols)
-    print("Preset: click a preset on the left. Run/Pause: press 'p'.")
+    print("Pause: press 'p' | Quit: press 'q'")
     plt.show()
