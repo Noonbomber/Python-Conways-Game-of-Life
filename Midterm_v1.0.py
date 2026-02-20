@@ -6,15 +6,24 @@ import json
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 from matplotlib.widgets import RadioButtons
+from matplotlib.colors import ListedColormap
+
+EMOTIONAL_CMAP = ListedColormap([
+    "black",   # 0 dead
+    "yellow",   # 1 neutral
+    "green",  # 2 happy
+    "red"      # 3 angry
+])
 
 class CellularAutomaton:
     #Initialization of the board setting the rules and connecting files
     def __init__(self, rows, cols, rule_file="rules.json", presets_file="presets.json"):
+        self.mode = "conway"
         #Stores our dimension of the board
         self.rows = rows
         self.cols = cols
         #Default random starting grid, will be replaced if a preset is chosen
-        self.grid = np.random.choice([0, 1], size=(rows, cols))
+        self.grid = np.random.choice([0, 1], size=(rows, cols), p=[0.75, 0.25])
         # loads the rules from the rules file
         with open(rule_file) as f:
             rules = json.load(f)
@@ -26,7 +35,13 @@ class CellularAutomaton:
         self.presets = self.load_presets(presets_file)
         #setup of the board and buttons 
         self.fig, self.ax = plt.subplots()
-        self.image = self.ax.imshow(self.grid, cmap="binary")
+        self.image = self.ax.imshow(
+            self.grid,
+            cmap="binary",
+            interpolation="nearest",
+            vmin=0,
+            vmax=3
+        )
         self.ax.set_title("Cellular Automaton  (Pause: press 'p' | Quit: press 'q')")
         self.ax.set_xticks([])
         self.ax.set_yticks([])
@@ -61,6 +76,7 @@ class CellularAutomaton:
         self.radio.on_clicked(self.on_preset_change)
         # makes sure random is the defualt selection for the board state
         self.on_preset_change(names[0])
+
     def on_preset_change(self, label):
        #IF the state gets changed, the code will pause
         self.paused = True  
@@ -97,10 +113,34 @@ class CellularAutomaton:
                 # ignore cells that arent in bounds
                 if 0 <= r < self.rows and 0 <= c < self.cols:
                     total += self.grid[r, c]
-
         return total
-    #Main logic for updating the board based off of the rules
-    def update(self):
+    
+    def count_neighbors_emotional(self, row, col):
+        total_alive = 0
+        happy_only = 0
+        angry_only = 0
+
+        for i in [-1, 0, 1]:
+            for j in [-1, 0, 1]:
+                if i == 0 and j == 0:
+                    continue
+
+                r = row + i
+                c = col + j
+
+                if 0 <= r < self.rows and 0 <= c < self.cols:
+                    val = self.grid[r, c]
+
+                    if val > 0:
+                        total_alive += 1
+                    if val == 1:
+                        happy_only += 1
+                    if val == 3:
+                        angry_only += 1
+
+        return total_alive, happy_only, angry_only
+    #Main logic for updating the board based off of Conway's rules
+    def update_conway(self):
         new_grid = np.copy(self.grid)
         for r in range(self.rows):
             for c in range(self.cols):
@@ -112,6 +152,53 @@ class CellularAutomaton:
                     if neighbors in self.birth:
                         new_grid[r, c] = 1
         self.grid = new_grid
+    def update(self):
+        if self.mode == "conway":
+            self.update_conway()
+        elif self.mode == "emotional":
+            self.update_emotional()
+    def update_emotional(self):
+
+        new_grid = np.copy(self.grid)
+
+        for r in range(self.rows):
+            for c in range(self.cols):
+
+                total, happy, angry = self.count_neighbors_emotional(r, c)
+                state = self.grid[r, c]
+
+                if state == 3:  # angry
+                    for i in [-1,0,1]:
+                        for j in [-1,0,1]:
+                            if i == 0 and j == 0:
+                                continue
+                            nr, nc = r+i, c+j
+                            if 0 <= nr < self.rows and 0 <= nc < self.cols:
+                                new_grid[nr, nc] = 0
+
+                if state > 0:
+                    if total <= 1 or total >= 5:
+                        new_grid[r, c] = 0
+                    elif total == 2:
+                        new_grid[r, c] = 2  # happy
+                    elif total == 3:
+                        new_grid[r, c] = 1  # neutral
+                    elif total == 4:
+                        new_grid[r, c] = 3  # angry
+                else:
+                    if happy == 2:
+                            new_grid[r, c] = 1  # neutral newborn
+                    if angry == 1:
+                            for i in [-1,0,1]:
+                                for j in [-1,0,1]:
+                                    if i == 0 and j == 0:
+                                        continue
+                                    nr, nc = r+i, c+j
+                                    if 0 <= nr < self.rows and 0 <= nc < self.cols:
+                                        new_grid[nr, nc] = 0
+
+        self.grid = new_grid
+
     #The updating and redrawing of the board based off of the new state we just calculated
     def animate(self, frame):
         if not self.paused:
@@ -131,6 +218,18 @@ class CellularAutomaton:
             self.anim.event_source.stop()
             #closes the window
             plt.close(self.fig)
+        elif event.key == "m":
+
+            if self.mode == "conway":
+                self.mode = "emotional"
+                self.image.set_cmap(EMOTIONAL_CMAP)
+                self.image.set_clim(0, 3)
+                print("Mode: Emotional")
+            else:
+                self.mode = "conway"
+                self.image.set_cmap("binary")
+                self.image.set_clim(0, 1)
+                print("Mode: Conway")
 
 if __name__ == "__main__":
     #This lets the user change the size of the board, if they don't put in a number, defaults to 50
