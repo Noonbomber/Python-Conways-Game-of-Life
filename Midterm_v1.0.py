@@ -37,7 +37,7 @@ class CellularAutomaton:
             vmin=0,
             vmax=3
         )
-        self.ax.set_title("Cellular Automaton  (Pause: press 'p' | Quit: press 'q')")
+        self.ax.set_title("Cellular Automaton  (Pause: press 'p' | Quit: press 'q' | Toggle Mode: press 'm')")
         self.ax.set_xticks([])
         self.ax.set_yticks([])
 
